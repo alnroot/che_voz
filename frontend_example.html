@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElevenLabs Bridge Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: #f0f0f0;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 10px;
+            background-color: #e0e0e0;
+            border-radius: 5px;
+        }
+        #callButton {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        #endButton {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ElevenLabs Voice Assistant</h1>
+        
+        <div>
+            <label for="phoneNumber">Phone Number:</label>
+            <input type="tel" id="phoneNumber" placeholder="+1234567890" value="+1234567890">
+        </div>
+        
+        <div>
+            <label for="countryCode">Country:</label>
+            <select id="countryCode">
+                <option value="US">United States</option>
+                <option value="MX">Mexico</option>
+                <option value="AR">Argentina</option>
+                <option value="ES">Spain</option>
+                <option value="BR">Brazil</option>
+            </select>
+        </div>
+        
+        <div>
+            <button id="callButton">Start Call</button>
+            <button id="endButton" disabled>End Call</button>
+        </div>
+        
+        <div class="status" id="status">
+            Status: Ready
+        </div>
+        
+        <div id="agentInfo"></div>
+    </div>
+
+    <script>
+        let websocket = null;
+        let conversationId = null;
+        let mediaRecorder = null;
+        let audioContext = null;
+        
+        const API_URL = 'http://localhost:8000';
+        
+        const callButton = document.getElementById('callButton');
+        const endButton = document.getElementById('endButton');
+        const statusDiv = document.getElementById('status');
+        const agentInfoDiv = document.getElementById('agentInfo');
+        
+        callButton.addEventListener('click', startCall);
+        endButton.addEventListener('click', endCall);
+        
+        async function startCall() {
+            try {
+                statusDiv.textContent = 'Status: Initializing...';
+                
+                // Get user inputs
+                const phoneNumber = document.getElementById('phoneNumber').value;
+                const countryCode = document.getElementById('countryCode').value;
+                
+                // Initialize conversation
+                const response = await fetch(`${API_URL}/conversation/init`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        caller_phone: phoneNumber,
+                        country_code: countryCode,
+                        language: getLanguageForCountry(countryCode)
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to initialize conversation');
+                }
+                
+                const data = await response.json();
+                conversationId = data.conversation_id;
+                
+                agentInfoDiv.innerHTML = `
+                    <p><strong>Agent:</strong> ${data.agent_name}</p>
+                    <p><strong>Agent ID:</strong> ${data.agent_id}</p>
+                `;
+                
+                // Connect to WebSocket
+                const wsUrl = `ws://localhost:8000${data.websocket_url}`;
+                websocket = new WebSocket(wsUrl);
+                
+                websocket.onopen = () => {
+                    statusDiv.textContent = 'Status: Connected';
+                    callButton.disabled = true;
+                    endButton.disabled = false;
+                    startAudioCapture();
+                };
+                
+                websocket.onmessage = async (event) => {
+                    const message = JSON.parse(event.data);
+                    
+                    if (message.type === 'ready') {
+                        statusDiv.textContent = `Status: Connected to ${message.agent_name}`;
+                    } else if (message.type === 'audio') {
+                        // Play received audio
+                        playAudio(message.data);
+                    } else if (message.type === 'error') {
+                        statusDiv.textContent = `Error: ${message.message}`;
+                        endCall();
+                    }
+                };
+                
+                websocket.onerror = (error) => {
+                    statusDiv.textContent = 'Status: Connection error';
+                    console.error('WebSocket error:', error);
+                    endCall();
+                };
+                
+                websocket.onclose = () => {
+                    statusDiv.textContent = 'Status: Disconnected';
+                    endCall();
+                };
+                
+            } catch (error) {
+                statusDiv.textContent = `Error: ${error.message}`;
+                console.error('Error starting call:', error);
+            }
+        }
+        
+        async function startAudioCapture() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioContext = new AudioContext();
+                
+                // Create a MediaRecorder to capture audio
+                mediaRecorder = new MediaRecorder(stream);
+                
+                mediaRecorder.ondataavailable = async (event) => {
+                    if (event.data.size > 0 && websocket && websocket.readyState === WebSocket.OPEN) {
+                        // Convert audio blob to array buffer
+                        const arrayBuffer = await event.data.arrayBuffer();
+                        const uint8Array = new Uint8Array(arrayBuffer);
+                        
+                        // Convert to hex string for transmission
+                        const hexString = Array.from(uint8Array)
+                            .map(b => b.toString(16).padStart(2, '0'))
+                            .join('');
+                        
+                        // Send audio to server
+                        websocket.send(JSON.stringify({
+                            type: 'audio',
+                            data: hexString
+                        }));
+                    }
+                };
+                
+                // Start recording in chunks
+                mediaRecorder.start(100); // Send audio every 100ms
+                
+            } catch (error) {
+                statusDiv.textContent = 'Error: Could not access microphone';
+                console.error('Error accessing microphone:', error);
+            }
+        }
+        
+        async function playAudio(hexData) {
+            try {
+                // Convert hex string back to array buffer
+                const bytes = new Uint8Array(hexData.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+                
+                // Decode and play audio
+                const audioBuffer = await audioContext.decodeAudioData(bytes.buffer);
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(audioContext.destination);
+                source.start();
+                
+            } catch (error) {
+                console.error('Error playing audio:', error);
+            }
+        }
+        
+        async function endCall() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.send(JSON.stringify({ type: 'end' }));
+                websocket.close();
+            }
+            
+            if (conversationId) {
+                // Notify server that conversation has ended
+                await fetch(`${API_URL}/conversation/${conversationId}`, {
+                    method: 'DELETE'
+                });
+            }
+            
+            callButton.disabled = false;
+            endButton.disabled = true;
+            statusDiv.textContent = 'Status: Ready';
+            agentInfoDiv.innerHTML = '';
+            conversationId = null;
+            websocket = null;
+            mediaRecorder = null;
+        }
+        
+        function getLanguageForCountry(countryCode) {
+            const languages = {
+                'US': 'en-US',
+                'MX': 'es-MX',
+                'AR': 'es-AR',
+                'ES': 'es-ES',
+                'BR': 'pt-BR'
+            };
+            return languages[countryCode] || 'en-US';
+        }
+        
+        // Load available agents on page load
+        async function loadAgents() {
+            try {
+                const response = await fetch(`${API_URL}/agents`);
+                const data = await response.json();
+                console.log('Available agents:', data.agents);
+            } catch (error) {
+                console.error('Error loading agents:', error);
+            }
+        }
+        
+        loadAgents();
+    </script>
+</body>
+</html>

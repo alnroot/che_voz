@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElevenLabs Voice Assistant</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>ElevenLabs Voice Assistant</h1>
+        
+        <div class="form-group">
+            <label for="phoneNumber">Phone Number:</label>
+            <input type="tel" id="phoneNumber" placeholder="+1234567890" value="+1234567890">
+        </div>
+        
+        <div class="form-group">
+            <label for="countryCode">Country:</label>
+            <select id="countryCode">
+                <option value="US">United States</option>
+                <option value="MX">Mexico</option>
+                <option value="AR">Argentina</option>
+                <option value="ES">Spain</option>
+                <option value="BR">Brazil</option>
+            </select>
+        </div>
+        
+        <div class="controls">
+            <button id="callButton" class="btn btn-primary">Start Call</button>
+            <button id="endButton" class="btn btn-danger" disabled>End Call</button>
+        </div>
+        
+        <div class="status" id="status">
+            Status: Ready
+        </div>
+        
+        <div id="agentInfo" class="agent-info"></div>
+        
+        <div class="audio-visualizer" id="audioVisualizer">
+            <canvas id="visualizer"></canvas>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
