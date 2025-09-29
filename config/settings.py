@@ -3,25 +3,24 @@ from typing import Optional
 
 
 class Settings(BaseSettings):
-    app_name: str = "LangGraph API Service"
+    # Application
+    app_name: str = "ElevenLabs Voice Assistant"
     debug: bool = False
     
+    # Server configuration
+    host: str = "0.0.0.0"
+    port: int = 8000
+    
+    # ElevenLabs
     elevenlabs_api_key: Optional[str] = None
-    elevenlabs_voice_id: Optional[str] = None
     
-    twilio_account_sid: Optional[str] = None
-    twilio_auth_token: Optional[str] = None
-    twilio_phone_number: Optional[str] = None
-    
-    numverify_api_key: Optional[str] = None
-    
-    redis_url: str = "redis://localhost:6379"
-    
-    websocket_url: str = "wss://localhost:8000/media-stream"
+    # Environment
+    environment: str = "development"  # development, production
     
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"  # Ignore extra environment variables
 
 
 settings = Settings()

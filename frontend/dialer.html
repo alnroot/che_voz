@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <title>Teléfono</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      height: 100%;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+
+    body {
+      background: #000;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: white;
+      height: 100vh;
+      height: 100dvh; /* Dynamic viewport height for mobile */
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      touch-action: manipulation; /* Prevent double-tap zoom */
+      position: fixed;
+      width: 100%;
+      top: 0;
+      left: 0;
+    }
+
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 20px;
+      padding-top: max(8px, env(safe-area-inset-top));
+      font-size: 14px;
+      background: rgba(0, 0, 0, 0.8);
+    }
+
+    .status-bar .time {
+      font-weight: 600;
+    }
+
+    .status-bar .icons {
+      display: flex;
+      gap: 5px;
+    }
+
+    .dialer-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      max-width: 420px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 0 15px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .display-area {
+      flex: 0 0 auto;
+      padding: 8px 0;
+      text-align: center;
+      min-height: 80px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    @media (max-height: 700px) {
+      .display-area {
+        min-height: 60px;
+        padding: 4px 0;
+      }
+    }
+
+    @media (max-height: 600px) {
+      .display-area {
+        min-height: 50px;
+        padding: 2px 0;
+      }
+    }
+
+    .phone-input {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 26px;
+      font-weight: 300;
+      text-align: center;
+      outline: none;
+      width: 100%;
+      margin-bottom: 3px;
+      caret-color: #007AFF;
+    }
+
+    @media (max-height: 700px) {
+      .phone-input {
+        font-size: 22px;
+        margin-bottom: 2px;
+      }
+    }
+
+    @media (max-height: 600px) {
+      .phone-input {
+        font-size: 20px;
+      }
+    }
+
+    .phone-input::placeholder {
+      color: #666;
+    }
+
+    .contact-suggestion {
+      font-size: 11px;
+      color: #888;
+      height: 16px;
+    }
+
+    @media (max-height: 700px) {
+      .contact-suggestion {
+        font-size: 10px;
+        height: 14px;
+      }
+    }
+
+    @media (max-height: 600px) {
+      .contact-suggestion {
+        font-size: 9px;
+        height: 12px;
+      }
+    }
+
+    .keypad-container {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      padding-bottom: 5px;
+    }
+
+    @media (max-height: 700px) {
+      .keypad-container {
+        padding-bottom: 3px;
+      }
+    }
+
+    @media (max-height: 600px) {
+      .keypad-container {
+        padding-bottom: 2px;
+      }
+    }
+
+    .keypad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      max-width: 340px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 375px) {
+      .keypad {
+        gap: 6px;
+        max-width: 320px;
+      }
+    }
+
+    @media (max-height: 700px) {
+      .keypad {
+        gap: 6px;
+      }
+    }
+
+    @media (max-height: 600px) {
+      .keypad {
+        gap: 4px;
+        max-width: 300px;
+      }
+    }
+
+    .key {
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: #1c1c1e;
+      border: none;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.1s ease;
+      position: relative;
+      max-height: 80px;
+    }
+
+    @media (max-height: 600px) {
+      .key {
+        max-height: 65px;
+      }
+    }
+
+    .key:active {
+      background: #2c2c2e;
+      transform: scale(0.95);
+    }
+
+    .key .number {
+      font-size: 26px;
+      font-weight: 400;
+      line-height: 1;
+    }
+
+    @media (max-width: 375px) {
+      .key .number {
+        font-size: 22px;
+      }
+    }
+
+    @media (max-height: 700px) {
+      .key .number {
+        font-size: 22px;
+      }
+    }
+
+    @media (max-height: 600px) {
+      .key .number {
+        font-size: 20px;
+      }
+    }
+
+    .key .letters {
+      font-size: 9px;
+      text-transform: uppercase;
+      color: #888;
+      letter-spacing: 1px;
+      margin-top: 1px;
+    }
+
+    @media (max-height: 700px) {
+      .key .letters {
+        font-size: 8px;
+        letter-spacing: 0.5px;
+      }
+    }
+
+    @media (max-height: 600px) {
+      .key .letters {
+        font-size: 7px;
+        margin-top: 0;
+      }
+    }
+
+    .key.special {
+      font-size: 24px;
+    }
+
+    .action-buttons {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 10px;
+      max-width: 340px;
+      width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+      padding-bottom: 5px;
+    }
+
+    @media (max-height: 700px) {
+      .action-buttons {
+        margin-top: 8px;
+        gap: 6px;
+      }
+    }
+
+    @media (max-height: 600px) {
+      .action-buttons {
+        margin-top: 6px;
+        gap: 4px;
+        max-width: 300px;
+      }
+    }
+
+    .action-btn {
+      aspect-ratio: 1;
+      border-radius: 50%;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: #2c2c2e;
+      color: white;
+      max-height: 80px;
+    }
+
+    @media (max-height: 600px) {
+      .action-btn {
+        max-height: 65px;
+      }
+    }
+
+    .action-btn:active {
+      transform: scale(0.95);
+    }
+
+    .call-btn {
+      background: #4CD964;
+      grid-column: 2;
+    }
+
+    .call-btn:active {
+      background: #3fb950;
+    }
+
+    .call-btn svg {
+      width: 26px;
+      height: 26px;
+      fill: white;
+    }
+
+    @media (max-height: 700px) {
+      .call-btn svg {
+        width: 22px;
+        height: 22px;
+      }
+    }
+
+    @media (max-height: 600px) {
+      .call-btn svg {
+        width: 20px;
+        height: 20px;
+      }
+    }
+
+    .delete-btn {
+      grid-column: 3;
+      font-size: 24px;
+    }
+
+    .bottom-tabs {
+      display: flex;
+      justify-content: space-around;
+      padding: 8px 0;
+      padding-bottom: max(8px, env(safe-area-inset-bottom));
+      background: rgba(0, 0, 0, 0.95);
+      border-top: 1px solid #333;
+      position: relative;
+      z-index: 10;
+    }
+
+    .tab {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      font-size: 9px;
+      color: #888;
+      padding: 4px 8px;
+      cursor: pointer;
+    }
+
+    .tab.active {
+      color: #007AFF;
+    }
+
+    .tab svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+
+    /* Landscape orientation adjustments */
+    @media (orientation: landscape) and (max-height: 500px) {
+      .display-area {
+        min-height: 40px;
+        padding: 2px 0;
+      }
+      .phone-input {
+        font-size: 18px;
+      }
+      .key {
+        max-height: 55px;
+      }
+      .key .number {
+        font-size: 18px;
+      }
+      .key .letters {
+        font-size: 6px;
+      }
+      .examples {
+        display: none;
+      }
+    }
+    /* Info modal styles */
+    .info-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 100;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .info-modal.active {
+      display: block;
+    }
+
+    .info-content {
+      max-width: 400px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #1c1c1e;
+      border-radius: 12px;
+      color: white;
+    }
+
+    .info-content h3 {
+      margin-bottom: 15px;
+      color: #007AFF;
+    }
+
+    .info-content p {
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 10px;
+      color: #ccc;
+    }
+
+    .close-info {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      font-size: 24px;
+      color: white;
+      cursor: pointer;
+    }
+
+    .location-status {
+      padding: 10px;
+      background: rgba(0, 122, 255, 0.1);
+      border-radius: 8px;
+      margin-top: 10px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="status-bar">
+    <div class="carrier">Carrier</div>
+    <div class="time" id="currentTime">9:41</div>
+    <div class="icons">
+      <span>📶</span>
+      <span>🔋</span>
+    </div>
+  </div>
+
+  <div class="dialer-container">
+    <div class="display-area">
+      <input type="tel" class="phone-input" id="phoneInput" placeholder="Tu número" maxlength="20">
+      <div class="contact-suggestion" id="suggestion">Llamando a ChevOz AI</div>
+      <div class="examples" id="examples" style="font-size: 9px; color: #666; margin-top: 3px; line-height: 1.1;">
+        Prueba estos números:<br>
+        <span style="color: #888;">111 = 🇦🇷 Agente Porteño</span><br>
+        <span style="color: #888;">444 = 🇦🇷 Agente Cordobés</span><br>
+        <span style="color: #888;">555 = 🇦🇷 Agente Mendocino</span><br>
+        <span style="color: #888;">222 = 🇲🇽 Agente Mexicano</span><br>
+        <span style="color: #888;">333 = 🇨🇴 Agente Colombiana</span>
+      </div>
+    </div>
+
+    <div class="keypad-container">
+      <div class="keypad">
+        <button class="key" data-value="1">
+          <span class="number">1</span>
+          <span class="letters"></span>
+        </button>
+        <button class="key" data-value="2">
+          <span class="number">2</span>
+          <span class="letters">ABC</span>
+        </button>
+        <button class="key" data-value="3">
+          <span class="number">3</span>
+          <span class="letters">DEF</span>
+        </button>
+        
+        <button class="key" data-value="4">
+          <span class="number">4</span>
+          <span class="letters">GHI</span>
+        </button>
+        <button class="key" data-value="5">
+          <span class="number">5</span>
+          <span class="letters">JKL</span>
+        </button>
+        <button class="key" data-value="6">
+          <span class="number">6</span>
+          <span class="letters">MNO</span>
+        </button>
+        
+        <button class="key" data-value="7">
+          <span class="number">7</span>
+          <span class="letters">PQRS</span>
+        </button>
+        <button class="key" data-value="8">
+          <span class="number">8</span>
+          <span class="letters">TUV</span>
+        </button>
+        <button class="key" data-value="9">
+          <span class="number">9</span>
+          <span class="letters">WXYZ</span>
+        </button>
+        
+        <button class="key special" data-value="*">
+          <span class="number">✱</span>
+        </button>
+        <button class="key" data-value="0">
+          <span class="number">0</span>
+          <span class="letters">+</span>
+        </button>
+        <button class="key special" data-value="#">
+          <span class="number">#</span>
+        </button>
+      </div>
+
+      <div class="action-buttons">
+        <div></div>
+        <button class="action-btn call-btn" id="callBtn">
+          <svg viewBox="0 0 24 24">
+            <path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56a.977.977 0 00-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/>
+          </svg>
+        </button>
+        <button class="action-btn delete-btn" id="deleteBtn">
+          ⌫
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-tabs">
+    <div class="tab">
+      <svg viewBox="0 0 24 24">
+        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+      </svg>
+      <span>Favoritos</span>
+    </div>
+    <div class="tab">
+      <svg viewBox="0 0 24 24">
+        <path d="M13 3a9 9 0 00-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0013 21a9 9 0 000-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>
+      </svg>
+      <span>Recientes</span>
+    </div>
+    <div class="tab active">
+      <svg viewBox="0 0 24 24">
+        <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
+      </svg>
+      <span>Teclado</span>
+    </div>
+    <div class="tab" id="infoTab">
+      <svg viewBox="0 0 24 24">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+      </svg>
+      <span>Info</span>
+    </div>
+  </div>
+
+  <!-- Info Modal -->
+  <div class="info-modal" id="infoModal">
+    <span class="close-info" id="closeInfo">&times;</span>
+    <div class="info-content">
+      <h3>🌎 Sistema de Agentes por Región</h3>
+      <p>ChevOz AI detecta automáticamente tu ubicación para conectarte con el agente de tu región.</p>
+      
+      <h4 style="margin-top: 20px; margin-bottom: 10px;">¿Cómo funciona?</h4>
+      <p>• Detectamos tu país automáticamente<br>
+      • Te conectamos con un agente local<br>
+      • Habla con acento y modismos de tu región<br>
+      • Entiende mejor tu contexto cultural</p>
+      
+      <h4 style="margin-top: 20px; margin-bottom: 10px;">Agentes disponibles:</h4>
+      <p>🇦🇷 Argentina: Porteño, Cordobés, Mendocino<br>
+      🇲🇽 México: Agente Mexicano<br>
+      🇨🇴 Colombia: Agente Colombiana</p>
+      
+      <div class="location-status" id="locationStatus">
+        Detectando tu ubicación...
+      </div>
+      
+      <p style="font-size: 11px; color: #666; margin-top: 15px;">
+        * En esta demo puedes probar todos los agentes usando los códigos especiales (111, 222, etc.)
+      </p>
+    </div>
+  </div>
+
+  <script>
+    const phoneInput = document.getElementById('phoneInput');
+    const suggestion = document.getElementById('suggestion');
+    const deleteBtn = document.getElementById('deleteBtn');
+    const callBtn = document.getElementById('callBtn');
+    const currentTimeEl = document.getElementById('currentTime');
+    const infoTab = document.getElementById('infoTab');
+    const infoModal = document.getElementById('infoModal');
+    const closeInfo = document.getElementById('closeInfo');
+    const locationStatus = document.getElementById('locationStatus');
+
+    // Fixed destination - always ChevOz
+    const defaultContact = "ChevOz AI";
+    const chevozNumber = "CHEVOZ"; // Fixed destination
+
+    // User location data
+    let userCountry = null;
+    let suggestedAgent = null;
+
+    // Update current time
+    function updateCurrentTime() {
+      const now = new Date();
+      const hours = now.getHours();
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      currentTimeEl.textContent = `${hours}:${minutes}`;
+    }
+    setInterval(updateCurrentTime, 1000);
+    updateCurrentTime();
+
+    // Handle keypad clicks
+    document.querySelectorAll('.key').forEach(key => {
+      key.addEventListener('click', () => {
+        const value = key.getAttribute('data-value');
+        phoneInput.value += value;
+        updateSuggestion();
+      });
+    });
+
+    // Handle delete button
+    deleteBtn.addEventListener('click', () => {
+      phoneInput.value = phoneInput.value.slice(0, -1);
+      updateSuggestion();
+    });
+
+    // Long press to clear
+    let deleteTimer;
+    deleteBtn.addEventListener('mousedown', () => {
+      deleteTimer = setTimeout(() => {
+        phoneInput.value = '';
+        updateSuggestion();
+      }, 500);
+    });
+
+    deleteBtn.addEventListener('mouseup', () => {
+      clearTimeout(deleteTimer);
+    });
+
+    // Update suggestion with agent info
+    function updateSuggestion() {
+      const number = phoneInput.value;
+      const examples = document.getElementById('examples');
+      
+      if (number.length === 0) {
+        // Show location-based suggestion if available
+        if (suggestedAgent) {
+          suggestion.innerHTML = `Sugerencia: ${suggestedAgent.flag} ${suggestedAgent.name}`;
+          suggestion.style.color = '#4CD964';
+        } else {
+          suggestion.textContent = "Llamando a ChevOz AI";
+        }
+        // Only show examples if there's enough space
+        if (window.innerHeight > 500) {
+          examples.style.display = 'block';
+        }
+        return;
+      }
+      
+      // Hide examples when typing
+      examples.style.display = 'none';
+      
+      // Show which agent will answer
+      if (number === '111') {
+        suggestion.textContent = '🇦🇷 Te atenderá el Agente Porteño';
+        suggestion.style.color = '#4CD964';
+      } else if (number === '444') {
+        suggestion.textContent = '🇦🇷 Te atenderá el Agente Cordobés';
+        suggestion.style.color = '#4CD964';
+      } else if (number === '555') {
+        suggestion.textContent = '🇦🇷 Te atenderá el Agente Mendocino';
+        suggestion.style.color = '#4CD964';
+      } else if (number === '222') {
+        suggestion.textContent = '🇲🇽 Te atenderá el Agente Mexicano';
+        suggestion.style.color = '#4CD964';
+      } else if (number === '333') {
+        suggestion.textContent = '🇨🇴 Te atenderá la Agente Colombiana';
+        suggestion.style.color = '#4CD964';
+      } else if (number.startsWith('+54') || number.startsWith('54')) {
+        suggestion.textContent = '🇦🇷 Te atenderá el Agente Porteño';
+        suggestion.style.color = '#4CD964';
+      } else if (number.startsWith('+52') || number.startsWith('52')) {
+        suggestion.textContent = '🇲🇽 Te atenderá el Agente Mexicano';
+        suggestion.style.color = '#4CD964';
+      } else if (number.startsWith('+57') || number.startsWith('57')) {
+        suggestion.textContent = '🇨🇴 Te atenderá la Agente Colombiana';
+        suggestion.style.color = '#4CD964';
+      } else {
+        suggestion.textContent = 'Llamando a ChevOz AI desde ' + number;
+        suggestion.style.color = '#888';
+      }
+    }
+
+    // Handle call button
+    callBtn.addEventListener('click', () => {
+      const fromNumber = phoneInput.value;
+      
+      if (!fromNumber) {
+        alert('Por favor ingresa un número\n\nPrueba:\n111 = Agente Porteño 🇦🇷\n444 = Agente Cordobés 🇦🇷\n555 = Agente Mendocino 🇦🇷\n222 = Agente Mexicano 🇲🇽\n333 = Agente Colombiana 🇨🇴');
+        return;
+      }
+      
+      // Allow test numbers or international format
+      if (fromNumber.length < 3) {
+        alert('Por favor ingresa un número válido\n\nPrueba:\n111 = Agente Porteño 🇦🇷\n444 = Agente Cordobés 🇦🇷\n555 = Agente Mendocino 🇦🇷\n222 = Agente Mexicano 🇲🇽\n333 = Agente Colombiana 🇨🇴');
+        return;
+      }
+      
+      // Always call ChevOz, pass the from number
+      window.location.href = `/call?from=${encodeURIComponent(fromNumber)}&to=${encodeURIComponent(chevozNumber)}`;
+    });
+
+    // Handle direct input
+    phoneInput.addEventListener('input', updateSuggestion);
+
+    // Initialize
+    updateSuggestion();
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      updateSuggestion();
+    });
+
+    // Check on orientation change
+    window.addEventListener('orientationchange', () => {
+      setTimeout(updateSuggestion, 100);
+    });
+
+    // Info modal handlers
+    infoTab.addEventListener('click', () => {
+      infoModal.classList.add('active');
+    });
+
+    closeInfo.addEventListener('click', () => {
+      infoModal.classList.remove('active');
+    });
+
+    infoModal.addEventListener('click', (e) => {
+      if (e.target === infoModal) {
+        infoModal.classList.remove('active');
+      }
+    });
+
+    // Geolocation detection
+    function detectLocation() {
+      // Try to get location from IP-based service
+      fetch('https://ipapi.co/json/')
+        .then(response => response.json())
+        .then(data => {
+          userCountry = data.country_code;
+          const countryName = data.country_name;
+          const city = data.city;
+          
+          // Determine suggested agent based on country
+          if (userCountry === 'AR') {
+            suggestedAgent = { code: '111', name: 'Agente Porteño', flag: '🇦🇷' };
+            // Could enhance to detect specific regions
+            if (city && city.toLowerCase().includes('córdoba')) {
+              suggestedAgent = { code: '444', name: 'Agente Cordobés', flag: '🇦🇷' };
+            } else if (city && city.toLowerCase().includes('mendoza')) {
+              suggestedAgent = { code: '555', name: 'Agente Mendocino', flag: '🇦🇷' };
+            }
+          } else if (userCountry === 'MX') {
+            suggestedAgent = { code: '222', name: 'Agente Mexicano', flag: '🇲🇽' };
+          } else if (userCountry === 'CO') {
+            suggestedAgent = { code: '333', name: 'Agente Colombiana', flag: '🇨🇴' };
+          } else {
+            // Default to Argentine agent for other countries
+            suggestedAgent = { code: '111', name: 'Agente Porteño', flag: '🇦🇷' };
+          }
+          
+          // Update location status
+          locationStatus.innerHTML = `
+            <strong>Tu ubicación:</strong> ${city ? city + ', ' : ''}${countryName}<br>
+            <strong>Agente sugerido:</strong> ${suggestedAgent.flag} ${suggestedAgent.name}<br>
+            <small style="color: #888;">Marca ${suggestedAgent.code} para hablar con este agente</small>
+          `;
+          
+          // Update initial suggestion if no number entered
+          if (!phoneInput.value) {
+            suggestion.innerHTML = `Sugerencia: ${suggestedAgent.flag} ${suggestedAgent.name}`;
+            suggestion.style.color = '#4CD964';
+          }
+        })
+        .catch(error => {
+          console.error('Error detecting location:', error);
+          locationStatus.innerHTML = `
+            <strong>No se pudo detectar tu ubicación</strong><br>
+            <small style="color: #888;">Puedes elegir cualquier agente usando los códigos</small>
+          `;
+        });
+    }
+
+    // Detect location on load
+    detectLocation();
+  </script>
+
+</body>
+</html>

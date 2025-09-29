@@ -5,22 +5,17 @@ services:
     build: .
     ports:
       - "8000:8000"
-      - "5678:5678"  # debugpy port
+      # - "5678:5678"  # debugpy port (uncomment for debugging)
     environment:
       - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
-      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
-      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
-      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
-      - NUMVERIFY_API_KEY=${NUMVERIFY_API_KEY}
-      - REDIS_URL=redis://redis:6379
-      - WEBSOCKET_URL=ws://localhost:8000/ws/conversation
+      - ELEVENLABS_VOICE_ID=${ELEVENLABS_VOICE_ID}
     volumes:
       - ./:/app
       - ./frontend:/app/frontend
     # Normal mode (comment this line and uncomment debug mode to debug)
-    command: uvicorn main_frontend_bridge:app --host 0.0.0.0 --port 8000 --reload
+    # command: uvicorn main_frontend_bridge:app --host 0.0.0.0 --port 8000 --reload
     # Debug mode (uncomment to enable debugging)
-    # command: python -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m uvicorn main_frontend_bridge:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     networks:
       - app-network
 
@@ -32,18 +27,6 @@ services:
       - ./frontend:/usr/share/nginx/html
     networks:
       - app-network
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    networks:
-      - app-network
-
-volumes:
-  redis-data:
 
 networks:
   app-network:
