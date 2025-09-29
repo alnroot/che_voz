@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 import logging
 
 from config.settings import settings
-from api.routes import health, agents, conversations, static
+from api.routes import health, agents, conversations, static, location
 from api.websockets import handlers as ws_handlers
 
 logging.basicConfig(level=logging.INFO)
@@ -36,6 +36,7 @@ app.include_router(static.router)
 app.include_router(health.router)
 app.include_router(agents.router)
 app.include_router(conversations.router)
+app.include_router(location.router)
 app.include_router(ws_handlers.router)
 
 

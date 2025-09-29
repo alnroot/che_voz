@@ -125,9 +125,23 @@
     }
 
     .contact-suggestion {
-      font-size: 11px;
+      font-size: 12px;
       color: #888;
-      height: 16px;
+      min-height: 24px;
+      background: rgba(76, 217, 100, 0.1);
+      border-radius: 12px;
+      margin: 0 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px 10px;
+      transition: all 0.3s ease;
+    }
+    
+    .contact-suggestion.highlighted {
+      background: rgba(76, 217, 100, 0.2);
+      color: #4CD964;
+      font-weight: 500;
     }
 
     @media (max-height: 700px) {
@@ -692,34 +706,41 @@
       // Hide examples when typing
       examples.style.display = 'none';
       
+      // Reset suggestion styles
+      suggestion.classList.remove('highlighted');
+      suggestion.style.color = '';
+      
       // Show which agent will answer
       if (number === '111') {
         suggestion.textContent = '🇦🇷 Te atenderá el Agente Porteño';
-        suggestion.style.color = '#4CD964';
+        suggestion.classList.add('highlighted');
       } else if (number === '444') {
         suggestion.textContent = '🇦🇷 Te atenderá el Agente Cordobés';
-        suggestion.style.color = '#4CD964';
+        suggestion.classList.add('highlighted');
       } else if (number === '555') {
         suggestion.textContent = '🇦🇷 Te atenderá el Agente Mendocino';
-        suggestion.style.color = '#4CD964';
+        suggestion.classList.add('highlighted');
       } else if (number === '222') {
         suggestion.textContent = '🇲🇽 Te atenderá el Agente Mexicano';
-        suggestion.style.color = '#4CD964';
+        suggestion.classList.add('highlighted');
       } else if (number === '333') {
         suggestion.textContent = '🇨🇴 Te atenderá la Agente Colombiana';
-        suggestion.style.color = '#4CD964';
+        suggestion.classList.add('highlighted');
       } else if (number.startsWith('+54') || number.startsWith('54')) {
         suggestion.textContent = '🇦🇷 Te atenderá el Agente Porteño';
-        suggestion.style.color = '#4CD964';
+        suggestion.classList.add('highlighted');
       } else if (number.startsWith('+52') || number.startsWith('52')) {
         suggestion.textContent = '🇲🇽 Te atenderá el Agente Mexicano';
-        suggestion.style.color = '#4CD964';
+        suggestion.classList.add('highlighted');
       } else if (number.startsWith('+57') || number.startsWith('57')) {
         suggestion.textContent = '🇨🇴 Te atenderá la Agente Colombiana';
-        suggestion.style.color = '#4CD964';
+        suggestion.classList.add('highlighted');
+      } else if (number && suggestedAgent && suggestedAgent.code) {
+        // Show location-based suggestion for any other number
+        suggestion.textContent = `Sugerencia basada en tu ubicación: ${suggestedAgent.flag} ${suggestedAgent.name}`;
+        suggestion.classList.add('highlighted');
       } else {
         suggestion.textContent = 'Llamando a ChevOz AI desde ' + number;
-        suggestion.style.color = '#888';
       }
     }
 
@@ -775,52 +796,104 @@
 
     // Geolocation detection
     function detectLocation() {
-      // Try to get location from IP-based service
-      fetch('https://ipapi.co/json/')
+      // First try browser geolocation API for more accurate results
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            // Got precise location, send to our API
+            try {
+              const response = await fetch('/suggest-agent-by-location', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  latitude: position.coords.latitude,
+                  longitude: position.coords.longitude,
+                  accuracy: position.coords.accuracy
+                })
+              });
+              
+              if (!response.ok) throw new Error('API error');
+              
+              const data = await response.json();
+              handleLocationSuggestion(data);
+            } catch (error) {
+              console.error('Error with precise location:', error);
+              // Fall back to IP geolocation
+              detectLocationByIP();
+            }
+          },
+          (error) => {
+            // User denied location or error occurred
+            console.log('Browser geolocation failed:', error);
+            detectLocationByIP();
+          },
+          { timeout: 5000 }
+        );
+      } else {
+        // Browser doesn't support geolocation
+        detectLocationByIP();
+      }
+    }
+    
+    // IP-based location detection (fallback)
+    function detectLocationByIP() {
+      // Use our backend API which handles IP geolocation
+      fetch('/suggest-agent')
         .then(response => response.json())
         .then(data => {
-          userCountry = data.country_code;
-          const countryName = data.country_name;
-          const city = data.city;
-          
-          // Determine suggested agent based on country
-          if (userCountry === 'AR') {
-            suggestedAgent = { code: '111', name: 'Agente Porteño', flag: '🇦🇷' };
-            // Could enhance to detect specific regions
-            if (city && city.toLowerCase().includes('córdoba')) {
-              suggestedAgent = { code: '444', name: 'Agente Cordobés', flag: '🇦🇷' };
-            } else if (city && city.toLowerCase().includes('mendoza')) {
-              suggestedAgent = { code: '555', name: 'Agente Mendocino', flag: '🇦🇷' };
-            }
-          } else if (userCountry === 'MX') {
-            suggestedAgent = { code: '222', name: 'Agente Mexicano', flag: '🇲🇽' };
-          } else if (userCountry === 'CO') {
-            suggestedAgent = { code: '333', name: 'Agente Colombiana', flag: '🇨🇴' };
-          } else {
-            // Default to Argentine agent for other countries
-            suggestedAgent = { code: '111', name: 'Agente Porteño', flag: '🇦🇷' };
-          }
-          
-          // Update location status
-          locationStatus.innerHTML = `
-            <strong>Tu ubicación:</strong> ${city ? city + ', ' : ''}${countryName}<br>
-            <strong>Agente sugerido:</strong> ${suggestedAgent.flag} ${suggestedAgent.name}<br>
-            <small style="color: #888;">Marca ${suggestedAgent.code} para hablar con este agente</small>
-          `;
-          
-          // Update initial suggestion if no number entered
-          if (!phoneInput.value) {
-            suggestion.innerHTML = `Sugerencia: ${suggestedAgent.flag} ${suggestedAgent.name}`;
-            suggestion.style.color = '#4CD964';
-          }
+          handleLocationSuggestion(data);
         })
         .catch(error => {
           console.error('Error detecting location:', error);
+          // Show fallback message
           locationStatus.innerHTML = `
             <strong>No se pudo detectar tu ubicación</strong><br>
             <small style="color: #888;">Puedes elegir cualquier agente usando los códigos</small>
           `;
+          
+          // Set default suggestion
+          suggestedAgent = { code: '111', name: 'Agente Porteño', flag: '🇦🇷' };
+          if (!phoneInput.value) {
+            suggestion.innerHTML = `Elige un agente: 111 🇦🇷 | 222 🇲🇽 | 333 🇨🇴`;
+            suggestion.style.color = '#888';
+          }
         });
+    }
+    
+    // Handle location suggestion response
+    function handleLocationSuggestion(data) {
+      if (data.success && data.suggestion) {
+        const { agent_code, agent_info, message } = data.suggestion;
+        suggestedAgent = { 
+          code: agent_code, 
+          name: agent_info.name, 
+          flag: agent_info.flag 
+        };
+        
+        // Update location status with more detailed info
+        if (data.location) {
+          const loc = data.location;
+          locationStatus.innerHTML = `
+            <strong>Tu ubicación:</strong> ${loc.city ? loc.city + ', ' : ''}${loc.country_name}<br>
+            <strong>Agente sugerido:</strong> ${agent_info.flag} ${agent_info.name}<br>
+            <small style="color: #888;">Marca ${agent_code} para hablar con este agente</small>
+          `;
+        } else {
+          locationStatus.innerHTML = `
+            <strong>Agente sugerido:</strong> ${agent_info.flag} ${agent_info.name}<br>
+            <small style="color: #888;">Marca ${agent_code} para hablar con este agente</small>
+          `;
+        }
+        
+        // Update initial suggestion if no number entered
+        if (!phoneInput.value) {
+          suggestion.innerHTML = message || `Sugerencia: ${agent_info.flag} ${agent_info.name}`;
+          suggestion.classList.add('highlighted');
+        }
+        
+        // Store user's country for other uses
+        userCountry = data.location?.country_code || 'AR';
+      }
     }
 
     // Detect location on load
