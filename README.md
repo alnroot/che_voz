@@ -1,6 +1,10 @@
-# ElevenLabs Voice Assistant Demo 🎙️
+# Che Voz - AI Voice Assistant Platform 🎙️
 
 Real-time voice assistant using ElevenLabs' conversational AI with WebSocket streaming.
+
+🌐 **Demo Dashboard**: [https://che-voz.vercel.app/](https://che-voz.vercel.app/)
+
+Che Voz es una plataforma de asistentes de voz con IA Soberana que permite crear experiencias conversacionales naturales en múltiples dialectos del español.
 
 ## 🚀 Quick Start (30 seconds!)
 
